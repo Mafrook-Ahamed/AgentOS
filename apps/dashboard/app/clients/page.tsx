@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/admin";
-import { createClientRecord, deleteClientRecord } from "./actions";
+import { createClientRecord, deleteClientRecord, updateClientRecord } from "./actions";
 import { Building2, Mail, Phone, Plus, Search, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -28,6 +28,16 @@ export default async function ClientsPage() {
       <div className="client-avatar">{client.company.slice(0,1).toUpperCase()}</div><div className="client-identity"><b>{client.company}</b><span>{client.name}</span></div>
       <div className="client-contact"><span><Mail size={13}/>{client.email}</span>{client.phone && <span><Phone size={13}/>{client.phone}</span>}</div>
       <span className={`client-status ${client.status}`}>{client.status}</span>
+      <details className="client-edit"><summary>Edit</summary><form action={updateClientRecord}>
+        <input type="hidden" name="id" value={client.id}/>
+        <label>Contact name<input name="name" required defaultValue={client.name}/></label>
+        <label>Company<input name="company" required defaultValue={client.company}/></label>
+        <label>Email<input name="email" type="email" required defaultValue={client.email}/></label>
+        <label>Phone<input name="phone" defaultValue={client.phone ?? ""}/></label>
+        <label>Notes<input name="notes" defaultValue={client.notes ?? ""}/></label>
+        <label>Status<select name="status" defaultValue={client.status}><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></label>
+        <button type="submit">Save changes</button>
+      </form></details>
       <form action={deleteClientRecord}><input type="hidden" name="id" value={client.id}/><button className="delete-client" type="submit" aria-label={`Delete ${client.company}`}>Remove</button></form>
     </article>) : <div className="clients-empty"><Users size={24}/><b>No clients yet</b><span>Add your first client to start organising AI deployments.</span></div>}</div>
     </section>

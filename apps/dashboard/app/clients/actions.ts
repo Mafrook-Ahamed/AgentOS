@@ -8,7 +8,7 @@ function field(formData: FormData, key: string) {
 }
 
 export async function createClientRecord(formData: FormData) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, userId } = await requireAdmin();
   const name = field(formData, "name");
   const email = field(formData, "email").toLowerCase();
   const company = field(formData, "company");
@@ -16,7 +16,7 @@ export async function createClientRecord(formData: FormData) {
   const notes = field(formData, "notes");
   if (!name || !email || !company) throw new Error("Name, email and company are required.");
   const { error } = await supabase.from("clients").insert({
-    name, email, company, phone: phone || null, notes: notes || null, created_by: user.id,
+    name, email, company, phone: phone || null, notes: notes || null, created_by: userId,
   });
   if (error) throw new Error(error.message);
   revalidatePath("/clients");

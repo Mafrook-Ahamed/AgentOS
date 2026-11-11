@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Activity, ArrowDownRight, ArrowUpRight, Bot, ChevronDown, CircleHelp, Command, CreditCard, FileText, Gauge, LayoutDashboard, LifeBuoy, Menu, MessageSquare, MoreHorizontal, Plus, Search, Settings, ShieldCheck, Sparkles, Users, Workflow, Zap } from "lucide-react";
 import Link from "next/link";
-import { signOut } from "./login/actions";
+import { signOut } from "../app/login/actions";
 
 const initialAgents = [
   { name: "Travel Enquiry Assistant", client: "Client deployment", type: "Customer support", status: "Active", conversations: 0, model: "OpenAI", color: "blue" },
