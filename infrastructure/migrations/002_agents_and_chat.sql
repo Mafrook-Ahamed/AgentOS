@@ -70,7 +70,7 @@ revoke all on public.agents, public.agent_conversations, public.agent_messages, 
 grant select, insert, update, delete on public.agents to authenticated;
 grant select, insert, update, delete on public.agent_conversations to authenticated;
 grant select, insert, update, delete on public.agent_messages to authenticated;
-grant select on public.agent_usage to authenticated;
+grant select, insert on public.agent_usage to authenticated;
 
 drop policy if exists "AgentOS admins manage agents" on public.agents;
 create policy "AgentOS admins manage agents" on public.agents for all to authenticated
@@ -84,3 +84,6 @@ using ((select public.is_agentos_admin())) with check ((select public.is_agentos
 drop policy if exists "AgentOS admins read usage" on public.agent_usage;
 create policy "AgentOS admins read usage" on public.agent_usage for select to authenticated
 using ((select public.is_agentos_admin()));
+drop policy if exists "AgentOS admins insert usage" on public.agent_usage;
+create policy "AgentOS admins insert usage" on public.agent_usage for insert to authenticated
+with check ((select public.is_agentos_admin()));
