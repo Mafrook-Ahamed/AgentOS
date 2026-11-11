@@ -1,0 +1,47 @@
+name: AgentOS CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/dashboard/**"
+      - "apps/api/**"
+      - "infrastructure/migrations/**"
+      - "supabase/functions/**"
+      - "pyproject.toml"
+      - ".github/workflows/agentos-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/dashboard/**"
+      - "apps/api/**"
+      - "infrastructure/migrations/**"
+      - "supabase/functions/**"
+      - "pyproject.toml"
+
+jobs:
+  dashboard-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/dashboard
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://qisthhtqtvgvmhvqzsbx.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_oCr9aLumBl5_KkO7aY7ADg_9gMIj7yK
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest
