@@ -1,0 +1,35 @@
+import { requireAdmin } from "@/lib/auth/admin";
+import { createClientRecord, deleteClientRecord } from "./actions";
+import { Building2, Mail, Phone, Plus, Search, Users } from "lucide-react";
+import Link from "next/link";
+
+export const dynamic = "force-dynamic";
+
+export default async function ClientsPage() {
+  const { supabase } = await requireAdmin();
+  const { data: clients, error } = await supabase.from("clients")
+    .select("id,name,email,company,phone,status,created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  return <main className="clients-page">
+    <div className="clients-head"><div><div className="eyebrow">WORKSPACE / CRM</div><h1>Client management</h1><p>Keep your client relationships and agent deployments organised.</p></div><a className="back-link" href="/">← Back to overview</a></div>
+    <div className="client-metrics"><div><Users/><span>All clients</span><b>{clients?.length ?? 0}</b></div><div><Building2/><span>Active clients</span><b>{clients?.filter((c) => c.status === "active").length ?? 0}</b></div><div><Mail/><span>Contact records</span><b>{clients?.filter((c) => c.email).length ?? 0}</b></div></div>
+    <section className="client-panel"><div className="client-panel-head"><div><h2>Clients</h2><p>Only platform administrators can access this list.</p></div><span className="client-count">{clients?.length ?? 0} records</span></div>
+    <form action={createClientRecord} className="client-form">
+      <label>Contact name<input name="name" required placeholder="e.g. Priya Sharma"/></label>
+      <label>Company<input name="company" required placeholder="Company name"/></label>
+      <label>Email<input name="email" type="email" required placeholder="contact@company.com"/></label>
+      <label>Phone <input name="phone" type="tel" placeholder="+91..."/></label>
+      <label className="wide">Notes<input name="notes" placeholder="Project scope, preferences or support notes"/></label>
+      <button type="submit"><Plus size={16}/> Add client</button>
+    </form>
+    <div className="client-list">{clients?.length ? clients.map((client) => <article className="client-row" key={client.id}>
+      <div className="client-avatar">{client.company.slice(0,1).toUpperCase()}</div><div className="client-identity"><b>{client.company}</b><span>{client.name}</span></div>
+      <div className="client-contact"><span><Mail size={13}/>{client.email}</span>{client.phone && <span><Phone size={13}/>{client.phone}</span>}</div>
+      <span className={`client-status ${client.status}`}>{client.status}</span>
+      <form action={deleteClientRecord}><input type="hidden" name="id" value={client.id}/><button className="delete-client" type="submit" aria-label={`Delete ${client.company}`}>Remove</button></form>
+    </article>) : <div className="clients-empty"><Users size={24}/><b>No clients yet</b><span>Add your first client to start organising AI deployments.</span></div>}</div>
+    </section>
+  </main>;
+}
