@@ -49,6 +49,22 @@ Deno.serve(async (request: Request) => {
     if (agentError || !agent) return json({ error: "Agent not found or access denied." }, 404);
     if (agent.status === "paused") return json({ error: "This agent is paused. Set it to draft or active to test it." }, 409);
 
+    // Atomically reserve one monthly request against this client's configured limit.
+    const { data: quotaRows, error: quotaError } = await supabase.rpc("reserve_client_agent_request", {
+      p_client_id: agent.client_id,
+    });
+    if (quotaError) {
+      console.error("Client usage limit check failed", quotaError.message);
+      return json({ error: "Could not verify this client's monthly usage limit." }, 500);
+    }
+    const quota = Array.isArray(quotaRows) ? quotaRows[0] : quotaRows;
+    if (!quota?.allowed) {
+      return json({
+        error: "This client's monthly AI request limit has been reached. Contact your AgentOS administrator to increase the limit.",
+        usage_limit: { used: quota?.used ?? 0, limit: quota?.request_limit ?? 0, resets_at: quota?.resets_at ?? null },
+      }, 429);
+    }
+
     let conversationId = requestedConversationId;
     if (conversationId) {
       const { data: conversation, error: conversationError } = await supabase.from("agent_conversations")
