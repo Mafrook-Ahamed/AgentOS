@@ -10,7 +10,7 @@ export default function PublicWidgetSettings({ agentId, enabled, origins: initia
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const embed = token ? `<script src="https://YOUR-AGENTOS-DOMAIN.vercel.app/widget.js" data-agentos-token="${token}" async></script>` : "";
+  const embed = token && typeof window !== "undefined" ? `<script src="${window.location.origin}/widget.js" data-agentos-token="${token}" async></script>` : "";
 
   async function issueCredential() {
     setBusy(true); setError(""); setNotice(""); setToken("");
