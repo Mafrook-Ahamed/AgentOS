@@ -50,7 +50,12 @@ Deno.serve(async (request: Request) => {
     if (agent.status === "paused") return json({ error: "This agent is paused. Set it to draft or active to test it." }, 409);
 
     // Atomically reserve one monthly request against this client's configured limit.
-    const { data: quotaRows, error: quotaError } = await supabase.rpc("reserve_client_agent_request", {
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceRoleKey) return json({ error: "Usage limit service is not configured." }, 503);
+    const quotaService = createClient(url, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: quotaRows, error: quotaError } = await quotaService.rpc("reserve_client_agent_request", {
       p_client_id: agent.client_id,
     });
     if (quotaError) {
