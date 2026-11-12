@@ -50,3 +50,20 @@ export async function deleteClientRecord(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/clients");
 }
+
+export async function updateClientUsageLimit(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const clientId = field(formData, "client_id");
+  const rawLimit = field(formData, "monthly_request_limit");
+  const enabled = field(formData, "usage_limit_enabled") === "on";
+  const limit = Number(rawLimit);
+  if (!clientId || !Number.isInteger(limit) || limit < 1 || limit > 1000000) {
+    throw new Error("Monthly request limit must be a whole number between 1 and 1,000,000.");
+  }
+  const { error } = await supabase.from("client_usage_limits").upsert({
+    client_id: clientId, monthly_request_limit: limit, enabled, updated_at: new Date().toISOString(),
+  }, { onConflict: "client_id" });
+  if (error) throw new Error(error.message);
+  revalidatePath("/clients");
+  revalidatePath("/usage");
+}
