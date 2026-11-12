@@ -1,3 +1,5 @@
+import Link from "next/link";
+import WorkspaceNav from "@/components/workspace-nav";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createClientRecord, deleteClientRecord, updateClientRecord } from "./actions";
 import { Building2, Mail, Phone, Plus, Users } from "lucide-react";
@@ -11,8 +13,8 @@ export default async function ClientsPage() {
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
 
-  return <main className="clients-page">
-    <div className="clients-head"><div><div className="eyebrow">WORKSPACE / CRM</div><h1>Client management</h1><p>Keep your client relationships and agent deployments organised.</p></div><a className="back-link" href="/">← Back to overview</a></div>
+  return <main className="clients-page"><WorkspaceNav/>
+    <div className="clients-head"><div><div className="eyebrow">WORKSPACE / CRM</div><h1>Client management</h1><p>Keep your client relationships and agent deployments organised.</p></div><Link className="back-link" href="/">← Back to overview</Link></div>
     <div className="client-metrics"><div><Users/><span>All clients</span><b>{clients?.length ?? 0}</b></div><div><Building2/><span>Active clients</span><b>{clients?.filter((c) => c.status === "active").length ?? 0}</b></div><div><Mail/><span>Contact records</span><b>{clients?.filter((c) => c.email).length ?? 0}</b></div></div>
     <section className="client-panel"><div className="client-panel-head"><div><h2>Clients</h2><p>Only platform administrators can access this list.</p></div><span className="client-count">{clients?.length ?? 0} records</span></div>
     <form action={createClientRecord} className="client-form">
