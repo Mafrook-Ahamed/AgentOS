@@ -71,6 +71,46 @@ Deno.serve(async (request: Request) => {
     if (historyError) return json({ error: "Could not load conversation history." }, 500);
     const messages = (history ?? []).reverse();
 
+    // Retrieve only chunks belonging to this agent's client workspace.
+    let knowledgeContext = "";
+    const { count: knowledgeCount } = await supabase.from("knowledge_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", agent.client_id).eq("status", "ready");
+    if ((knowledgeCount ?? 0) > 0) {
+      const embeddingKey = Deno.env.get("OPENAI_API_KEY");
+      if (!embeddingKey) return json({ error: "Client knowledge is configured, but OPENAI_API_KEY is missing for embeddings." }, 503);
+      const embeddingResponse = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + embeddingKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "text-embedding-3-small", input: message, dimensions: 1536 }),
+      });
+      const embeddingResult = await embeddingResponse.json();
+      if (!embeddingResponse.ok) {
+        console.error("Query embedding failed", embeddingResponse.status);
+        return json({ error: "Could not search this client's knowledge base." }, 502);
+      }
+      const queryVector = embeddingResult.data?.[0]?.embedding as number[] | undefined;
+      if (queryVector?.length) {
+        const { data: matches, error: matchError } = await supabase.rpc("match_knowledge_chunks", {
+          query_embedding: "[" + queryVector.join(",") + "]",
+          match_client_id: agent.client_id,
+          match_count: 5,
+        });
+        if (matchError) {
+          console.error("Knowledge retrieval failed", matchError.message);
+          return json({ error: "Knowledge search failed. Check the vector search migration." }, 500);
+        }
+        const relevant = (matches ?? []).filter((item: { similarity: number }) => item.similarity >= 0.25);
+        if (relevant.length) {
+          const docIds = [...new Set(relevant.map((item: { document_id: string }) => item.document_id))];
+          const { data: docs } = await supabase.from("knowledge_documents").select("id,title,file_name").in("id", docIds);
+          const titles = new Map((docs ?? []).map((doc: { id: string; title: string; file_name: string }) => [doc.id, doc.title || doc.file_name]));
+          knowledgeContext = "\\n\\nCLIENT KNOWLEDGE (use this information when relevant; if it does not answer the question, say so):\\n" +
+            relevant.map((item: { document_id: string; content: string }) => "[Source: " + (titles.get(item.document_id) ?? "Client document") + "]\\n" + item.content).join("\\n\\n");
+        }
+      }
+    }
+
     let reply = "";
     let inputTokens = 0;
     let outputTokens = 0;
@@ -83,7 +123,7 @@ Deno.serve(async (request: Request) => {
         body: JSON.stringify({
           model: agent.model,
           messages: [
-            { role: "system", content: agent.system_prompt },
+            { role: "system", content: agent.system_prompt + knowledgeContext },
             ...messages.map((item: { role: string; content: string }) => ({ role: item.role, content: item.content })),
           ],
           temperature: Number(agent.temperature),
@@ -107,7 +147,7 @@ Deno.serve(async (request: Request) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: agent.system_prompt }] },
+            systemInstruction: { parts: [{ text: agent.system_prompt + knowledgeContext }] },
             contents: messages.map((item: { role: string; content: string }) => ({
               role: item.role === "assistant" ? "model" : "user",
               parts: [{ text: item.content }],
