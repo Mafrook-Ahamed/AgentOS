@@ -40,8 +40,8 @@ export async function POST(request: Request) {
       }).eq("id", invoice.id).neq("status", "paid");
       if (updateError) return new Response("Could not update invoice.", { status: 500 });
       if (invoice.subscription_id) {
-        await db.from("client_subscriptions").update({ status: "active", updated_at: new Date().toISOString() })
-          .eq("id", invoice.subscription_id);
+        const { error: subscriptionError } = await db.from("client_subscriptions").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", invoice.subscription_id);
+        if (subscriptionError) return new Response("Invoice paid but subscription activation failed; webhook retry required.", { status: 500 });
       }
     }
   }
