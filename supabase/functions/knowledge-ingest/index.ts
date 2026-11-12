@@ -34,6 +34,7 @@ async function extractText(bytes: Uint8Array, fileName: string) {
   }
   return new TextDecoder("utf-8").decode(bytes);
 }
+let processingDocumentId: string | null = null;
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
   if (request.method !== "POST") return reply({ error: "Method not allowed." }, 405);
@@ -51,6 +52,7 @@ Deno.serve(async (request: Request) => {
     if (admin.error || admin.data !== true) return reply({ error: "Administrator access required." }, 403);
     const { document_id } = await request.json();
     if (typeof document_id !== "string") return reply({ error: "document_id is required." }, 400);
+    processingDocumentId = document_id;
     const { data: doc, error: docError } = await supabase.from("knowledge_documents").select("id,client_id,file_name,storage_path").eq("id", document_id).single();
     if (docError || !doc) return reply({ error: "Document not found." }, 404);
     await supabase.from("knowledge_documents").update({ status: "processing", error_message: null }).eq("id", doc.id);
@@ -81,6 +83,16 @@ Deno.serve(async (request: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Document processing failed.";
     console.error("knowledge-ingest failed", message);
+    if (processingDocumentId) {
+      const url = Deno.env.get("SUPABASE_URL");
+      const keys = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "{}");
+      const key = keys.default ?? Deno.env.get("SUPABASE_ANON_KEY");
+      const authorization = request.headers.get("Authorization");
+      if (url && key && authorization) {
+        const client = createClient(url, key, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false, autoRefreshToken: false } });
+        await client.from("knowledge_documents").update({ status: "failed", error_message: message, updated_at: new Date().toISOString() }).eq("id", processingDocumentId);
+      }
+    }
     return reply({ error: message }, 500);
   }
 });
