@@ -103,12 +103,13 @@ export async function assignClientSubscription(formData: FormData) {
 }
 export async function createBillingInvoice(formData: FormData) {
   const { supabase } = await requireAdmin();
-  const clientId=field(formData,"client_id"), amount=Number(field(formData,"amount"));
+  const clientId=field(formData,"client_id"), subscriptionId=field(formData,"subscription_id"), amount=Number(field(formData,"amount"));
   const currency=field(formData,"currency").toUpperCase() || "INR";
-  if(!clientId || !Number.isFinite(amount) || amount<0 || !/^[A-Z]{3}$/.test(currency)) throw new Error("Invalid invoice details.");
+  if(!clientId || !Number.isFinite(amount) || amount<=0 || !/^[A-Z]{3}$/.test(currency)) throw new Error("Invoice amount must be greater than zero and currency must be valid.");
+  if(subscriptionId){ const {data:subscription,error:subscriptionError}=await supabase.from("client_subscriptions").select("id").eq("id",subscriptionId).eq("client_id",clientId).maybeSingle(); if(subscriptionError || !subscription) throw new Error("Selected subscription does not belong to this client."); }
   const invoiceNumber="AG-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+crypto.randomUUID().slice(0,8).toUpperCase();
   const {error}=await supabase.from("billing_invoices").insert({
-    client_id:clientId,invoice_number:invoiceNumber,amount_minor:Math.round(amount*100),currency,
+    client_id:clientId,subscription_id:subscriptionId || null,invoice_number:invoiceNumber,amount_minor:Math.round(amount*100),currency,
     status:"issued",due_at:field(formData,"due_at") || null,description:field(formData,"description"),
   });
   if(error) throw new Error(error.message);
