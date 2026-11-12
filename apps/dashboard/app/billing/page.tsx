@@ -1,0 +1,43 @@
+import WorkspaceNav from "@/components/workspace-nav";
+import { requireAdmin } from "@/lib/auth/admin";
+import { createServicePlan, assignClientSubscription, createBillingInvoice, updateInvoiceStatus } from "@/app/clients/actions";
+import { CreditCard, FileText, Layers, Receipt } from "lucide-react";
+
+export const dynamic="force-dynamic";
+const money=(minor:number,currency:string)=>new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
+const date=(value:string|null)=>value?new Date(value+"T00:00:00").toLocaleDateString():"—";
+
+export default async function BillingPage(){
+ const {supabase}=await requireAdmin();
+ const [plansResult,clientsResult,subsResult,invoicesResult]=await Promise.all([
+  supabase.from("service_plans").select("*").order("created_at",{ascending:false}),
+  supabase.from("clients").select("id,company").eq("status","active").order("company"),
+  supabase.from("client_subscriptions").select("id,client_id,plan_id,status,started_at,current_period_end,auto_renew,notes,clients(company),service_plans(name,amount_minor,currency,billing_interval)").order("created_at",{ascending:false}).limit(100),
+  supabase.from("billing_invoices").select("id,client_id,invoice_number,amount_minor,currency,status,issued_at,due_at,paid_at,description,payment_reference,clients(company)").order("created_at",{ascending:false}).limit(100)
+ ]);
+ for(const result of [plansResult,clientsResult,subsResult,invoicesResult]) if(result.error) throw new Error(result.error.message);
+ const plans=plansResult.data??[],clients=clientsResult.data??[],subs=subsResult.data??[],invoices=invoicesResult.data??[];
+ const paid=invoices.filter(x=>x.status==="paid").reduce((sum,x)=>sum+x.amount_minor,0);
+ const outstanding=invoices.filter(x=>["issued","overdue"].includes(x.status)).reduce((sum,x)=>sum+x.amount_minor,0);
+ return <main className="billing-page"><WorkspaceNav/>
+  <header className="billing-header"><div><div className="eyebrow"><CreditCard size={13}/> REVENUE OPERATIONS</div><h1>Billing &amp; subscriptions</h1><p>Manage service plans, client subscriptions and invoice status.</p></div></header>
+  <section className="billing-metrics"><article><Layers/><span>Active plans</span><b>{plans.filter(x=>x.active).length}</b></article><article><CreditCard/><span>Current subscriptions</span><b>{subs.filter(x=>["active","trial"].includes(x.status)).length}</b></article><article><Receipt/><span>Paid invoices</span><b>{money(paid,"INR")}</b></article><article><FileText/><span>Outstanding invoices</span><b>{money(outstanding,"INR")}</b></article></section>
+  <div className="billing-columns">
+   <section className="billing-panel"><div className="billing-panel-head"><div><h2>Service plans</h2><p>Create reusable pricing and request allowances.</p></div></div>
+    <form action={createServicePlan} className="billing-form"><label>Plan name<input name="name" required placeholder="Starter / Growth / Pro"/></label><label>Price<input type="number" name="amount" min="0" step="0.01" required placeholder="4999"/></label><label>Currency<select name="currency"><option value="INR">INR</option><option value="USD">USD</option></select></label><label>Billing interval<select name="billing_interval"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="one_time">One-time</option></select></label><label>Monthly request allowance<input type="number" name="monthly_request_limit" min="1" max="1000000" defaultValue="1000" required/></label><label className="billing-wide">Description<input name="description" placeholder="What's included in this plan?"/></label><button type="submit">Create plan</button></form>
+    <div className="billing-plan-list">{plans.length?plans.map(plan=><article key={plan.id}><div><b>{plan.name}</b><small>{plan.description||"No description"}</small></div><strong>{money(plan.amount_minor,plan.currency)} <small>/ {plan.billing_interval.replace("_"," ")}</small></strong><span>{plan.monthly_request_limit.toLocaleString("en-IN")} requests / month</span></article>):<div className="billing-empty">No service plans created yet.</div>}</div>
+   </section>
+   <section className="billing-panel"><div className="billing-panel-head"><div><h2>Assign subscription</h2><p>Attach a plan to a client workspace.</p></div></div>
+    <form action={assignClientSubscription} className="billing-form"><label>Client<select name="client_id" required defaultValue=""><option value="" disabled>Select client</option>{clients.map(c=><option key={c.id} value={c.id}>{c.company}</option>)}</select></label><label>Plan<select name="plan_id" defaultValue=""><option value="">Custom / no plan</option>{plans.filter(p=>p.active).map(p=><option key={p.id} value={p.id}>{p.name} — {money(p.amount_minor,p.currency)}</option>)}</select></label><label>Status<select name="status"><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="cancelled">Cancelled</option><option value="expired">Expired</option></select></label><label>Period end<input type="date" name="current_period_end"/></label><label className="billing-wide">Notes<input name="notes" placeholder="Contract or service notes"/></label><button type="submit">Assign subscription</button></form>
+   </section>
+  </div>
+  <section className="billing-panel billing-table-panel"><div className="billing-panel-head"><div><h2>Client subscriptions</h2><p>Latest 100 subscription records.</p></div></div>
+   {subs.length?<div className="billing-table-wrap"><table className="billing-table"><thead><tr><th>Client</th><th>Plan</th><th>Status</th><th>Started</th><th>Period ends</th></tr></thead><tbody>{subs.map(s=><tr key={s.id}><td>{(s.clients as any)?.company??"Client"}</td><td>{(s.service_plans as any)?.name??"Custom"}</td><td><span className={"billing-status "+s.status}>{s.status.replace("_"," ")}</span></td><td>{date(s.started_at)}</td><td>{date(s.current_period_end)}</td></tr>)}</tbody></table></div>:<div className="billing-empty">No subscriptions yet.</div>}
+  </section>
+  <section className="billing-panel billing-table-panel"><div className="billing-panel-head"><div><h2>Invoices</h2><p>Create and manually reconcile client invoices.</p></div></div>
+   <form action={createBillingInvoice} className="billing-form billing-invoice-form"><label>Client<select name="client_id" required defaultValue=""><option value="" disabled>Select client</option>{clients.map(c=><option key={c.id} value={c.id}>{c.company}</option>)}</select></label><label>Amount<input type="number" name="amount" min="0" step="0.01" required placeholder="4999"/></label><label>Currency<select name="currency"><option value="INR">INR</option><option value="USD">USD</option></select></label><label>Due date<input type="date" name="due_at"/></label><label className="billing-wide">Description<input name="description" placeholder="Monthly AI agent maintenance"/></label><button type="submit">Issue invoice</button></form>
+   {invoices.length?<div className="billing-table-wrap"><table className="billing-table"><thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Status</th><th>Due</th><th>Update</th></tr></thead><tbody>{invoices.map(inv=><tr key={inv.id}><td><b>{inv.invoice_number}</b><small>{inv.description}</small></td><td>{(inv.clients as any)?.company??"Client"}</td><td>{money(inv.amount_minor,inv.currency)}</td><td><span className={"billing-status "+inv.status}>{inv.status}</span></td><td>{date(inv.due_at)}</td><td><form action={updateInvoiceStatus} className="invoice-update"><input type="hidden" name="id" value={inv.id}/><select name="status" defaultValue={inv.status}><option value="issued">Issued</option><option value="paid">Paid</option><option value="overdue">Overdue</option><option value="void">Void</option></select><input name="payment_reference" defaultValue={inv.payment_reference??""} placeholder="Payment ref (optional)"/><button type="submit">Save</button></form></td></tr>)}</tbody></table></div>:<div className="billing-empty">No invoices yet.</div>}
+  </section>
+  <p className="billing-disclaimer">Billing foundation only: invoices and payment statuses are managed manually. No payment gateway, automatic recurring charge, tax calculation or legally compliant invoice PDF is connected yet.</p>
+ </main>
+}
