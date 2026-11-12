@@ -91,14 +91,14 @@ export async function assignClientSubscription(formData: FormData) {
   const clientId=field(formData,"client_id"), planId=field(formData,"plan_id");
   const status=field(formData,"status"), end=field(formData,"current_period_end");
   if(!clientId || !["trial","active","past_due","cancelled","expired"].includes(status)) throw new Error("Invalid subscription details.");
-  const {error}=await supabase.from("client_subscriptions").insert({
-    client_id:clientId,plan_id:planId || null,status,current_period_end:end || null,notes:field(formData,"notes"),
+  const {error}=await supabase.rpc("admin_assign_client_subscription",{
+    p_client_id:clientId,
+    p_plan_id:planId || null,
+    p_status:status,
+    p_period_end:end || null,
+    p_notes:field(formData,"notes"),
   });
   if(error) throw new Error(error.message);
-  if(planId) {
-    const {data:plan}=await supabase.from("service_plans").select("monthly_request_limit").eq("id",planId).maybeSingle();
-    if(plan) await supabase.from("client_usage_limits").upsert({client_id:clientId,monthly_request_limit:plan.monthly_request_limit,enabled:true},{onConflict:"client_id"});
-  }
   revalidatePath("/billing"); revalidatePath("/clients"); revalidatePath("/usage");
 }
 export async function createBillingInvoice(formData: FormData) {
