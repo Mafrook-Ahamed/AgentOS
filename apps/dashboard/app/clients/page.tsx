@@ -2,7 +2,7 @@ import Link from "next/link";
 import WorkspaceNav from "@/components/workspace-nav";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createClientRecord, deleteClientRecord, updateClientRecord } from "./actions";
-import { linkClientUser } from "./membership-actions";
+import { inviteClientUser, linkClientUser } from "./membership-actions";
 import { Building2, Mail, Phone, Plus, Users } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function ClientsPage() {
         <label>Notes<input name="notes" defaultValue={client.notes ?? ""}/></label>
         <label>Status<select name="status" defaultValue={client.status}><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></label>
         <button type="submit">Save changes</button>
-      </form><form action={linkClientUser} className="client-access-form"><input type="hidden" name="client_id" value={client.id}/><b>Portal access</b><label>Registered user email<input type="email" name="email" required placeholder="client@example.com"/></label><label>Role<select name="role"><option value="owner">Owner</option><option value="member">Member</option></select></label><button type="submit">Grant portal access</button><small>User must register and verify this email first.</small></form></details>
+      </form><form action={inviteClientUser} className="client-access-form"><input type="hidden" name="client_id" value={client.id}/><b>Invite a new client user</b><label>Email address<input type="email" name="email" required placeholder="person@company.com"/></label><label>Role<select name="role"><option value="owner">Owner</option><option value="member">Member</option></select></label><button type="submit">Send invitation email</button><small>Creates an account invitation and grants access to this client workspace.</small></form><form action={linkClientUser} className="client-access-form"><input type="hidden" name="client_id" value={client.id}/><b>Portal access</b><label>Registered user email<input type="email" name="email" required placeholder="client@example.com"/></label><label>Role<select name="role"><option value="owner">Owner</option><option value="member">Member</option></select></label><button type="submit">Grant portal access</button><small>User must register and verify this email first.</small></form></details>
       <form action={deleteClientRecord}><input type="hidden" name="id" value={client.id}/><button className="delete-client" type="submit" aria-label={`Delete ${client.company}`}>Remove</button></form>
     </article>) : <div className="clients-empty"><Users size={24}/><b>No clients yet</b><span>Add your first client to start organising AI deployments.</span></div>}</div>
     </section>
