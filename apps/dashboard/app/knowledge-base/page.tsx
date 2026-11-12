@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth/admin";
 import KnowledgeBaseClient from "@/components/knowledge-base-client";
+import WorkspaceNav from "@/components/workspace-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -11,5 +12,5 @@ export default async function KnowledgeBasePage() {
   ]);
   if (clientsError) throw new Error(clientsError.message);
   if (documentsError) throw new Error(documentsError.message);
-  return <KnowledgeBaseClient clients={clients ?? []} documents={documents ?? []}/>;
+  return <><WorkspaceNav/><KnowledgeBaseClient clients={clients ?? []} documents={documents ?? []}/></>;
 }
