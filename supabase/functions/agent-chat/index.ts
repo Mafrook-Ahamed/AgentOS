@@ -27,10 +27,13 @@ Deno.serve(async (request: Request) => {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) return json({ error: "Your session is invalid. Sign in again." }, 401);
-    const { data: isAdmin, error: adminError } = await supabase.rpc("is_agentos_admin");
-    if (adminError || isAdmin !== true) return json({ error: "Administrator access is required." }, 403);
+    const [authResult, adminResult] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.rpc("is_agentos_admin"),
+    ]);
+    if (authResult.error || !authResult.data.user) return json({ error: "Your session is invalid. Sign in again." }, 401);
+    if (adminResult.error || adminResult.data !== true) return json({ error: "Administrator access is required." }, 403);
+    const userId = authResult.data.user.id;
 
     const body = await request.json();
     const agentId = typeof body.agent_id === "string" ? body.agent_id : "";
@@ -53,7 +56,7 @@ Deno.serve(async (request: Request) => {
       if (conversationError || !conversation) return json({ error: "Conversation not found." }, 404);
     } else {
       const { data: conversation, error: conversationError } = await supabase.from("agent_conversations")
-        .insert({ agent_id: agent.id, client_id: agent.client_id, created_by: authData.user.id, title: message.slice(0, 80) })
+        .insert({ agent_id: agent.id, client_id: agent.client_id, created_by: userId, title: message.slice(0, 80) })
         .select("id").single();
       if (conversationError || !conversation) return json({ error: "Could not start a conversation." }, 500);
       conversationId = conversation.id;
@@ -64,7 +67,7 @@ Deno.serve(async (request: Request) => {
     if (userMessageError) return json({ error: "Could not save your message." }, 500);
     const { data: history, error: historyError } = await supabase.from("agent_messages")
       .select("role,content").eq("conversation_id", conversationId)
-      .order("created_at", { ascending: false }).limit(20);
+      .order("created_at", { ascending: false }).limit(12);
     if (historyError) return json({ error: "Could not load conversation history." }, 500);
     const messages = (history ?? []).reverse();
 
@@ -132,11 +135,15 @@ Deno.serve(async (request: Request) => {
     });
     if (saveError) return json({ error: "The response was generated but could not be saved." }, 500);
 
-    await supabase.from("agent_usage").insert({
-      agent_id: agent.id, conversation_id: conversationId, provider: agent.provider,
-      model: agent.model, input_tokens: inputTokens, output_tokens: outputTokens,
-    });
-    await supabase.from("agent_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    const [usageResult, conversationResult] = await Promise.all([
+      supabase.from("agent_usage").insert({
+        agent_id: agent.id, conversation_id: conversationId, provider: agent.provider,
+        model: agent.model, input_tokens: inputTokens, output_tokens: outputTokens,
+      }),
+      supabase.from("agent_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId),
+    ]);
+    if (usageResult.error) console.error("Usage record failed", usageResult.error.message);
+    if (conversationResult.error) console.error("Conversation timestamp update failed", conversationResult.error.message);
     return json({ conversation_id: conversationId, reply, usage: { input_tokens: inputTokens, output_tokens: outputTokens } });
   } catch (error) {
     console.error("agent-chat failed", error);
