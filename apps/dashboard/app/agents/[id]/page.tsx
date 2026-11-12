@@ -8,8 +8,9 @@ import PublicWidgetSettings from "@/components/public-widget-settings";
 
 export const dynamic = "force-dynamic";
 
-export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AgentDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ status?: string }> }) {
   const { id } = await params;
+  const query = await searchParams;
   const { supabase } = await requireAdmin();
   const [{ data: agent, error }, { data: clients, error: clientsError }, { data: widget }] = await Promise.all([
     supabase.from("agents").select("*,clients(company,name)").eq("id", id).maybeSingle(),
@@ -28,6 +29,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         <select name="status" defaultValue={agent.status}><option value="draft">Draft</option><option value="active">Active</option><option value="paused">Paused</option></select>
         <button type="submit">Update status</button></form>
     </header>
+    {query.status && ["active", "paused", "draft"].includes(query.status) && <div className="agent-status-confirmation" role="status">Agent status saved: <strong>{query.status}</strong></div>}
     <div className="agent-detail-grid">
       <section className="agent-config-card"><div className="agent-config-heading"><span className="agent-card-icon"><Bot size={19}/></span><div><h2>Agent settings</h2><p>Changes are saved to your AgentOS database.</p></div></div>
         <form action={updateAgentRecord} className="agent-edit-form">
