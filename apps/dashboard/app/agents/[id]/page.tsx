@@ -4,15 +4,17 @@ import { Bot, ChevronLeft, MessageSquare, Sparkles } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/admin";
 import { updateAgentRecord, updateAgentStatus } from "../actions";
 import AgentChat from "@/components/agent-chat";
+import PublicWidgetSettings from "@/components/public-widget-settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase } = await requireAdmin();
-  const [{ data: agent, error }, { data: clients, error: clientsError }] = await Promise.all([
+  const [{ data: agent, error }, { data: clients, error: clientsError }, { data: widget }] = await Promise.all([
     supabase.from("agents").select("*,clients(company,name)").eq("id", id).maybeSingle(),
     supabase.from("clients").select("id,company").order("company"),
+    supabase.from("agent_widgets").select("enabled,allowed_origins").eq("agent_id", id).maybeSingle(),
   ]);
   if (error) throw new Error(error.message);
   if (clientsError) throw new Error(clientsError.message);
