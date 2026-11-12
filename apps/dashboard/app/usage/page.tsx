@@ -26,7 +26,6 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
   const rows = (data ?? []) as unknown as UsageRow[];
   const totalInput = rows.reduce((sum, row) => sum + (row.input_tokens ?? 0), 0);
   const totalOutput = rows.reduce((sum, row) => sum + (row.output_tokens ?? 0), 0);
-  const conversationCount = new Set(rows.map(row => row.id)).size;
   const agentMap = new Map<string, { name: string; client: string; requests: number; tokens: number }>();
   const clientMap = new Map<string, { name: string; requests: number; tokens: number }>();
   for (const row of rows) {
