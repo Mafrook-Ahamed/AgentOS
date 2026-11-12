@@ -10,7 +10,12 @@ export async function signIn(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) redirect("/login?error=invalid");
-  redirect("/");
+  const { data: isAdmin } = await supabase.rpc("is_agentos_admin");
+  if (isAdmin === true) redirect("/");
+  const { data: memberships } = await supabase.from("client_memberships").select("client_id").limit(1);
+  if (memberships?.length) redirect("/portal");
+  await supabase.auth.signOut();
+  redirect("/login?error=no-client-access");
 }
 
 export async function signOut() {
