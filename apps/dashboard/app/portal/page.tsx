@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Bot, FileText, MessageSquare, ShieldCheck } from "lucide-react";
 import { requireClient } from "@/lib/auth/client";
+import { signOut } from "@/app/login/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function ClientPortalPage() {
   ]);
   const companyNames = memberships.map((m:any)=>m.clients.company).join(", ");
   return <main className="client-portal">
-    <header className="portal-header"><div><div className="eyebrow"><ShieldCheck size={13}/> CLIENT WORKSPACE</div><h1>Welcome to your workspace</h1><p>{companyNames} · Your assigned AgentOS services</p></div><form action="/login/logout" method="post"><button className="portal-signout" formAction="/login/actions">Secure workspace</button></form></header>
+    <header className="portal-header"><div><div className="eyebrow"><ShieldCheck size={13}/> CLIENT WORKSPACE</div><h1>Welcome to your workspace</h1><p>{companyNames} · Your assigned AgentOS services</p></div><form action={signOut}><button className="portal-signout" type="submit">Sign out</button></form></header>
     <section className="portal-stats"><article><Bot/><span>Active agents</span><b>{agents?.length ?? 0}</b></article><article><MessageSquare/><span>Conversations</span><b>{conversations?.length ?? 0}</b></article><article><FileText/><span>Knowledge files</span><b>{docs?.length ?? 0}</b></article></section>
     <section className="portal-section"><div className="portal-section-head"><div><h2>Your AI agents</h2><p>Agents configured and activated for your business.</p></div></div>
       {agents?.length ? <div className="portal-agent-grid">{agents.map((agent:any)=><article className="portal-agent" key={agent.id}><span className="portal-agent-icon"><Bot size={19}/></span><h3>{agent.name}</h3><p>{agent.description || "Your AI assistant is ready to help."}</p><small>{agent.provider} · {agent.model}</small><span className="portal-active">Active</span></article>)}</div> : <div className="portal-empty">No active agents have been assigned yet.</div>}
