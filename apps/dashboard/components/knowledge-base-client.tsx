@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { FileText, UploadCloud, Trash2, RefreshCw, BookOpen, Search } from "lucide-react";
 
@@ -17,7 +17,7 @@ export default function KnowledgeBaseClient({ clients, documents: initialDocumen
   const [error, setError] = useState("");
   const supabase = useMemo(() => createClient(), []);
 
-  async function uploadDocument(event: React.FormEvent<HTMLFormElement>) {
+  async function uploadDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!clientId || !file) return;
     setBusy(true); setError(""); setNotice("");
@@ -56,8 +56,7 @@ export default function KnowledgeBaseClient({ clients, documents: initialDocumen
     if (!window.confirm("Delete this document and its indexed chunks?")) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const { error: storageError } = await supabase.storage.from("agentos-knowledge").remove([doc.file_name ? (documents.find(d => d.id === doc.id) as Document & { storage_path?: string }).storage_path ?? "" : ""]);
-      // The database cascade removes indexed chunks. The storage object is also removed by the server-side function.
+      // The server-side function removes the storage object and cascaded database records.
       const { error: deleteError } = await supabase.functions.invoke("knowledge-delete", { body: { document_id: doc.id } });
       if (deleteError) throw deleteError;
       setDocuments(current => current.filter(item => item.id !== doc.id));
