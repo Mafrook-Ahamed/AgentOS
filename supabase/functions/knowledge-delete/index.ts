@@ -1,0 +1,26 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
+const reply = (body: Record<string, unknown>, status = 200) => new Response(JSON.stringify(body), { status, headers });
+Deno.serve(async (request: Request) => {
+  if (request.method === "OPTIONS") return new Response("ok", { headers });
+  if (request.method !== "POST") return reply({ error: "Method not allowed." }, 405);
+  const authorization = request.headers.get("Authorization");
+  if (!authorization?.startsWith("Bearer ")) return reply({ error: "Sign in required." }, 401);
+  const url = Deno.env.get("SUPABASE_URL");
+  const keys = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "{}");
+  const key = keys.default ?? Deno.env.get("SUPABASE_ANON_KEY");
+  if (!url || !key) return reply({ error: "Supabase configuration missing." }, 503);
+  const supabase = createClient(url, key, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false, autoRefreshToken: false } });
+  const [auth, admin] = await Promise.all([supabase.auth.getUser(), supabase.rpc("is_agentos_admin")]);
+  if (auth.error || !auth.data.user) return reply({ error: "Session expired." }, 401);
+  if (admin.error || admin.data !== true) return reply({ error: "Administrator access required." }, 403);
+  const { document_id } = await request.json();
+  if (typeof document_id !== "string") return reply({ error: "document_id is required." }, 400);
+  const { data: doc, error } = await supabase.from("knowledge_documents").select("id,storage_path").eq("id", document_id).single();
+  if (error || !doc) return reply({ error: "Document not found." }, 404);
+  const { error: storageError } = await supabase.storage.from("agentos-knowledge").remove([doc.storage_path]);
+  if (storageError) return reply({ error: "Could not remove stored file: " + storageError.message }, 500);
+  const { error: deleteError } = await supabase.from("knowledge_documents").delete().eq("id", doc.id);
+  if (deleteError) return reply({ error: "Could not delete document metadata: " + deleteError.message }, 500);
+  return reply({ success: true });
+});
