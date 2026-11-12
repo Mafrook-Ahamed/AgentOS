@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       .eq("id", invoice_id).single();
     if (error || !invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
     if (invoice.amount_minor <= 0) return NextResponse.json({ error: "Invoices must have a positive amount to create a payment link." }, { status: 400 });
-    if (invoice.status === "paid" || invoice.status === "void") return NextResponse.json({ error: "This invoice cannot be paid." }, { status: 409 });
+    if (!["issued", "overdue"].includes(invoice.status)) return NextResponse.json({ error: "Only issued or overdue invoices can be paid." }, { status: 409 });
 
     if (invoice.razorpay_payment_link_id) {
       const existingUrl = (await supabase.from("billing_invoices").select("razorpay_payment_link_url").eq("id", invoice_id).single()).data?.razorpay_payment_link_url;
