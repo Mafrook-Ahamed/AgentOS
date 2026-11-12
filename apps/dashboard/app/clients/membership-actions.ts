@@ -7,8 +7,9 @@ export async function linkClientUser(formData: FormData) {
  const email=String(formData.get("email")??"").trim().toLowerCase();
  const role=String(formData.get("role")??"member");
  if(!clientId || !email || !email.includes("@")) throw new Error("Enter a valid client email.");
- const {error}=await supabase.rpc("admin_link_client_user",{p_client_id:clientId,p_email:email,p_role:role});
+ const {data,error}=await supabase.functions.invoke("client-link",{body:{client_id:clientId,email,role}});
  if(error) throw new Error(error.message);
+ if(data?.error) throw new Error(data.error);
  revalidatePath("/clients");
  revalidatePath("/portal");
 }
