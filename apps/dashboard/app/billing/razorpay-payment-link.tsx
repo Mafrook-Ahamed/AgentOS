@@ -11,7 +11,7 @@ export default function RazorpayPaymentLink({ invoiceId, existingUrl }: { invoic
       const response=await fetch("/api/razorpay/payment-link",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({invoice_id:invoiceId})});
       const result=await response.json();
       if(!response.ok) throw new Error(result.error??"Could not create payment link.");
-      window.open(result.payment_url,"_blank","noopener,noreferrer");
+      window.location.assign(result.payment_url);
     }catch(e){setError(e instanceof Error?e.message:"Payment link failed.");}
     finally{setLoading(false);}
   }
