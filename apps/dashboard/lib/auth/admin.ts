@@ -1,7 +1,9 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function requireAdmin() {
+// Deduplicate session and admin verification within a single server render.
+export const requireAdmin = cache(async function requireAdmin() {
   const supabase = await createClient();
   const claimsResult = await supabase.auth.getClaims();
   const userId = claimsResult.data?.claims?.sub;
@@ -15,15 +17,13 @@ export async function requireAdmin() {
   }
 
   return { supabase, userId };
-}
+});
 
-export async function isAdminUser() {
+export const isAdminUser = cache(async function isAdminUser() {
   const supabase = await createClient();
   const claimsResult = await supabase.auth.getClaims();
   const userId = claimsResult.data?.claims?.sub;
-
   if (claimsResult.error || !userId) return false;
-
-  const { data, error: adminError } = await supabase.rpc("is_agentos_admin");
-  return !adminError && data === true;
-}
+  const { data, error } = await supabase.rpc("is_agentos_admin");
+  return !error && data === true;
+});
