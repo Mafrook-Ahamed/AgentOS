@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bot, Plus, Sparkles, Users, ArrowUpRight } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createAgentRecord } from "./actions";
+import WorkspaceNav from "@/components/workspace-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function AgentsPage() {
   if (clientsError) throw new Error(clientsError.message);
   if (agentsError) throw new Error(agentsError.message);
 
-  return <main className="agents-page">
+  return <main className="agents-page"><WorkspaceNav/>
     <header className="agents-header">
       <div><div className="eyebrow"><Sparkles size={13}/> AGENT STUDIO</div><h1>AI Agents</h1>
         <p>Create, configure and test AI assistants for each client.</p></div>
