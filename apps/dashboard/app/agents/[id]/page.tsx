@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { updateAgentRecord, updateAgentStatus } from "../actions";
 import AgentChat from "@/components/agent-chat";
 import PublicWidgetSettings from "@/components/public-widget-settings";
+import WorkspaceNav from "@/components/workspace-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function AgentDetailPage({ params, searchParams }: { params
   if (!agent) notFound();
   const client = agent.clients as unknown as {company:string;name:string}|null;
 
-  return <main className="agent-detail-page">
+  return <main className="agent-detail-page"><WorkspaceNav/>
     <header className="agent-detail-header"><div><Link href="/agents" className="back-link"><ChevronLeft size={15}/> All agents</Link>
       <div className="eyebrow"><Sparkles size={13}/> AGENT CONFIGURATION</div><h1>{agent.name}</h1><p>{client?.company ?? "Client"} · {agent.provider} · {agent.model}</p></div>
       <form action={updateAgentStatus} className="agent-status-form"><input type="hidden" name="id" value={agent.id}/>
