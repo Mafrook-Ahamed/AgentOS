@@ -71,10 +71,13 @@ export async function updateAgentStatus(formData: FormData) {
   const id = value(formData, "id");
   const status = value(formData, "status");
   if (!id || !["draft", "active", "paused"].includes(status)) throw new Error("Invalid agent status.");
-  const { error } = await supabase.from("agents").update({
+  const { data: updated, error } = await supabase.from("agents").update({
     status, updated_at: new Date().toISOString(),
-  }).eq("id", id);
-  if (error) throw new Error(error.message);
+  }).eq("id", id).select("id,status").maybeSingle();
+  if (error) throw new Error("Could not update agent status: " + error.message);
+  if (!updated) throw new Error("No agent was updated. Check that this agent still exists and your admin access is active.");
+  revalidatePath("/", "layout");
   revalidatePath("/agents");
   revalidatePath("/agents/" + id);
+  redirect("/agents/" + id + "?status=" + updated.status);
 }
