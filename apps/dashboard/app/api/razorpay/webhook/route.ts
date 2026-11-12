@@ -27,12 +27,34 @@ export async function POST(request: Request) {
     const payment = event.payload?.payment?.entity;
     if (!link?.id || !payment?.id) return new Response("Missing payment data.", { status: 400 });
 
-    const { data: invoice, error } = await db.from("billing_invoices")
-      .select("id,client_id,subscription_id,status,amount_minor,currency")
+    let { data: invoice, error } = await db.from("billing_invoices")
+      .select("id,client_id,subscription_id,status,amount_minor,currency,razorpay_payment_link_id")
       .eq("razorpay_payment_link_id", link.id).maybeSingle();
     if (error) return new Response("Database lookup failed.", { status: 500 });
+    // Recover safely if link creation succeeded but saving its ID failed transiently.
+    const notedInvoiceId = link.notes?.agentos_invoice_id;
+    if (!invoice && typeof notedInvoiceId === "string") {
+      const fallback = await db.from("billing_invoices")
+        .select("id,client_id,subscription_id,status,amount_minor,currency,razorpay_payment_link_id")
+        .eq("id", notedInvoiceId).maybeSingle();
+      if (fallback.error) return new Response("Database fallback lookup failed.", { status: 500 });
+      invoice = fallback.data;
+      if (invoice && invoice.razorpay_payment_link_id && invoice.razorpay_payment_link_id !== link.id) {
+        return new Response("Payment link does not match invoice.", { status: 409 });
+      }
+      if (invoice && !invoice.razorpay_payment_link_id) {
+        const { error: linkSaveError } = await db.from("billing_invoices").update({
+          razorpay_payment_link_id: link.id,
+          razorpay_payment_link_url: link.short_url ?? null,
+          payment_provider: "razorpay",
+        }).eq("id", invoice.id).is("razorpay_payment_link_id", null);
+        if (linkSaveError) return new Response("Could not reconcile payment link.", { status: 500 });
+      }
+    }
     if (invoice) {
-      if (payment.amount !== invoice.amount_minor || payment.currency !== invoice.currency || payment.status !== "captured") {
+      if (invoice.status === "void") return new Response("Invoice is void.", { status: 409 });
+      if (link.amount !== invoice.amount_minor || link.currency !== invoice.currency ||
+          payment.amount !== invoice.amount_minor || payment.currency !== invoice.currency || payment.status !== "captured") {
         return new Response("Payment does not match invoice.", { status: 409 });
       }
       if (invoice.status !== "paid") {
