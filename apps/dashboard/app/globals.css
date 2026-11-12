@@ -165,3 +165,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .skeleton-card{height:100px}.skeleton-panel{height:300px}
 @media(max-width:700px){.page-loading{padding:26px 15px}.loading-metrics{grid-template-columns:1fr 1fr}.skeleton-card{height:82px}.agent-detail-header{align-items:flex-start;flex-direction:column}.agent-status-form{width:100%}.agent-status-form select{flex:1}.agent-detail-grid{grid-template-columns:minmax(0,1fr)}.agents-page,.agent-detail-page{padding:25px 15px 36px}.agents-header{align-items:flex-start;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* Shared workspace tab bar */
+.workspace-nav{display:flex;align-items:center;gap:6px;max-width:1440px;margin:0 auto 20px;padding:8px;background:#fff;border:1px solid #e9eaf1;border-radius:11px;box-shadow:0 3px 14px #20234b06;overflow-x:auto;scrollbar-width:none}
+.workspace-nav::-webkit-scrollbar{display:none}
+.workspace-nav a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 13px;border-radius:8px;color:#777b8e;font-size:11px;font-weight:600;white-space:nowrap}
+.workspace-nav a:hover{background:#f6f5ff;color:#5e53d3}
+.workspace-nav a.active{background:#efedff;color:#6256d4}
+.clients-page .workspace-nav{max-width:1150px}
+.agent-detail-page .workspace-nav{margin-bottom:22px}
+@media(max-width:700px){.workspace-nav{margin-bottom:16px;gap:3px;padding:6px}.workspace-nav a{padding:0 10px;font-size:10px;min-height:34px}.workspace-nav a svg{width:14px}}
