@@ -18,6 +18,7 @@ export async function POST(request: Request) {
       .select("id,invoice_number,amount_minor,currency,status,razorpay_payment_link_id,clients(company,email)")
       .eq("id", invoice_id).single();
     if (error || !invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+    if (invoice.amount_minor <= 0) return NextResponse.json({ error: "Invoices must have a positive amount to create a payment link." }, { status: 400 });
     if (invoice.status === "paid" || invoice.status === "void") return NextResponse.json({ error: "This invoice cannot be paid." }, { status: 409 });
 
     if (invoice.razorpay_payment_link_id) {
