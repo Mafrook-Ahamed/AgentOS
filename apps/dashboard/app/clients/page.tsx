@@ -1,14 +1,13 @@
 import { requireAdmin } from "@/lib/auth/admin";
 import { createClientRecord, deleteClientRecord, updateClientRecord } from "./actions";
-import { Building2, Mail, Phone, Plus, Search, Users } from "lucide-react";
-import Link from "next/link";
+import { Building2, Mail, Phone, Plus, Users } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientsPage() {
   const { supabase } = await requireAdmin();
   const { data: clients, error } = await supabase.from("clients")
-    .select("id,name,email,company,phone,status,created_at")
+    .select("id,name,email,company,phone,notes,status,created_at")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
 
